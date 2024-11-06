@@ -1,0 +1,362 @@
+---
+title: "INFORME PAC1 Dades Òmiques"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+date: "2024-11-04"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+R.version.string
+
+BiocManager::install("SummarizedExperiment")
+library(SummarizedExperiment)
+.libPaths("C:/Users/paula/R-libraries")
+
+Sys.which("make")
+
+
+dades <- read.csv("D:/UOC/Dades_omiques/PAC1/human_cachexia.csv", row.names = 1)
+
+head(dades)
+str(dades)
+#install.packages("dplyr")
+#install.packages("kableExtra")
+library(dplyr)
+library(kableExtra)
+
+```
+
+
+# 1. Abstract
+
+Aquest estudi analitza les diferències metabòliques entre pacients que presenten caquèxia i pacients sans, per tant, ens trobem davant d'un estudi sobre casos-control. La base de dades de la qual es disposa conté informació de 77 individus, dels quals 30 son sans i 47 presenten la patologia de caquèxia. Es van analitzar les 63 variables metabòliques per tal de conèixer si realment hi havia diferències estadísticament significatives entre els dos grups, utilitzant testos de normalitat, test de Wilcoxon i també es va realitzar un Anàlisi de Components Principals (a partir d'ara PCA) per tal de poder reduir les dimensions de les dades i simplificar les 63 variables resposta de les quals disposàvem. 
+
+Els resultats demostren que la gran majoria de les variables estudiades sí que presenten diferències estadísticament significatives entre els dos grups d'estudi. Mitjançant un PCA es van poder identificar nou components principals que expliquen el 76% de la variància del conjunt de dades. Cada un d'aquest components principals semblen mostrar diferents rutes metabòliques que queden afectades per la caquèxia. 
+
+Tot i que els resultats son prometedors, aquest estudi té unes limitacions a considerar. El tamany mostral és petit i hi trobem desigualtat entre la mida dels dos grups: casos-control. Es creu que la manca d'altres variables pot estar influint en els resultats, ja que no es té en compte ni dades demogràfiques ni les comorbiditats dels individus, per exemple i entre d'altres.També, es reconeix i queda reflectida la manca de revisió de la literatura sobre caquèxia per part de l'autora. 
+
+Tota la documentació relativa a aquest estudi la podeu trobar a:
+https://github.com/Olivlivliv/OSORIO-Recorda-Paula-PEC1.git
+
+# 2. Objectius de l' estudi
+
+Una part important d'aquest estudi és familiaritzar-se amb l'ús  i l'entorn de GitHub, entendre com es generen els diferents datasets, com estan conformats i quins arxius complementaris els solen acompanyar; així com familiaitzar-nos amb grans volums de dades i que sovint presenten més variables que casos. 
+
+L'objectiu principal d'aquest estudi, però, és analitzar les diferències metabòliques entre els nostres dos grups d'estudi: un grup de pacients amb caquèxia i un grup de controls sans, mitjançant l'anàlisi de variables bioquímiques que trobem recollides en la nostre base de dades. Per tant, es vol veure si realment existeixen diferències estadísticament significatives en la concentració de diferents metabòlits analitzats entre ambdós grups, per tal de veure si aquestes diferències poden estar relacionades directament amb el fet de patir aquesta patologia.
+
+
+
+# 3. Materials i Mètodes
+
+Per començar a realitzar aquest treball es van seguir les indicacions donades a l'enunciat, les quals presentaven instruccions sobre com obtenir les dades. Concretament, es feia referència a un repositori de github on hi havia diferents datasets de metabolòmica. Un d'aquests datasets és un que conté dades sobre Caquexia de l'any 2024 (carpeta anomenada 2024-Cachexia dins del repositori). En la descripció de les dades hi veiem que les mostres no estan emparellades, que hi ha dos grups de mostres, que tots els valors són numèric i que no hi ha cap valor faltant en el dataset. A partir d'aquest moment, tot l'anàlisi es va realitzar amb el programari R versió 4.4.1.
+
+En primer lloc es va configurar l'entorn de treball, és a dir, es va determinar el directori on es treballaria i es van instal·lar i carregar correctament tots els paquets, entre ells BiocManager per treballar amb Bioconductor, així com d'altres: SummarizedExperiment, dplyr,  kableExtra etc. A continuació, es van descarregar les dades sobre cachexia humana (2024) des del repositori de GitHub utilitzant el paquet git2r. Aquestes dades es van llegir per poder ser analitzades. Es va crear el contenidor de dades, que es tractava d'un objecte SummarizedExperiment per emmagatzemar les dades. També es va generar les metadades amb la informació relativa a la base de dades, que pot ser visualitzada en una taula en els anex d'aquest informe. 
+
+Per tant, aquests passos han permès descarregar el repositori per obtenir les dades i la informació relativa al repositori i preparar les dades per tal de poder ser analitzades amb el programari R. 
+
+Seguidament, es va realitzar una exploració de les dades, utilitzant la funció tbl_summary() que ens permet fer taules de manera fàcil i senzilla, es van realitzar tests de normalitat (Shapiro-Wilk i Anderson-Darling) i es va incloure el test de Wilcoxon per a mostres no paramètriques, per tal de veure si hi havia diferències entre els dos grups de l'estudi (caquètics vs controls).
+
+Posteriorment es va realitzar un Anàlisi de Components Principal (PCA) (seguint les indicacions de la guia proposada en els recursos d'aprenentatge del curs), per tal de reduir la dimensionalitat del conjunt de dades i identificar les combinacions lineals de les variables que expliquen la major part de la variabilitat de les dades. Primerament es van escalar les dades per tal d'evitar que algunes variables poguessin aportar pesos incorrectes o sobreestimats als resultats. També, es van calcular els valors propis (eigenvalues) i vectors propis (eigenvectors) de la matriu de covariància, i es va determinar quins components expliquen la major part de la variabilitat de les dades. Es va calcular els PC scores per a cada mostra i per veure la correlació entre aquests components, ja que ajuda a entendre la relació que hi ha entre les diferents variables.
+
+Posteriorment es realitzen diferents gràfics per tal de visualitzar de manera més entenedora els resultats, concretament la funció biplot i també gràfics boxplot per veure la variabilitat del primer component en funció del grup/condició. Per finalitzar l'exploració, es va realitzar una prova per veure si hi ha diferències entre els grups (adonis2). 
+
+Per acabar, s'ha creat un compte a Gitbub.com per tal de poder penjar els resultats d'aquest anàlisi i totes les dades i documents relatius a aquest.
+
+# 4. Resultats
+
+Com podem veure es tracta d'una base de dades que conté informació sobre 77 individus, concretament 47 que presenten caquexia i 30 del grup control; per tant, ens trobem davant d'un estudi de cas-control. En total hi ha 64 variables dins del dataset, que sembla que recullen els valors dels processos metabòlics. Únicament la variable Muscle.loss és categòrica, ja que ens indica a quin grup pertany cada individu. La resta de dades són en la seva totalitat numèriques. Al realitzar la instrucció str(dades) podem veure de quina classe són aquestes variables i quin nom tenen. També es comprova que, com diuen en el repositori de github, no hi hagi cap valor faltant.   
+
+Per començar realitzarem una taula que resumeixi totes les variables, on indicarem les mitjanes i el primer i tercer quartil entre parèntesis. Veurem tant la mediana de la base de dades com la dels dos grups per separat. Aquesta taula ja ens mostra a simple vista i d'una manera molt fàcil i intuitiva que efectivament hi ha diferències entre els dos grups, en tots els casos, veiem que els valors del grup control estan molt per sota dels valor que pren el grup cacheix, i això passa per absolutament totes les variables. Al realitzar un test de normalitat a totes les variables veiem que no podem asumir que cap de les variables segueixi una dstribució normal, per aquest motiu es realitza un test de Wilcoxon, on pràcticament totes surten significatives, és a dir, que hi trobem diferències estadísticament significatives entre els dos grups. De totes les variables, les següents són les úniques que no presenten diferències significatives entre els dos grups: X3.Aminoisobutyrate, Acetone, Hypoxanthine, Methylguanidine, Tartrate i Uracil. 
+
+
+
+
+```{r, include=FALSE}
+
+library(kableExtra)
+library(dplyr) 
+library(tidyr) 
+library(tibble)
+library(purrr)
+library(stringr)
+library(lme4) 
+library(sjPlot)
+library(ggplot2)
+library(gtsummary)
+library(nortest)
+
+
+
+t1 <- dades %>% 
+  tbl_summary(by=Muscle.loss) %>%
+  add_overall() %>% 
+  add_p
+```
+
+```{r}
+t1
+```
+
+
+També s'ha calculat la matriu de variança/covariància (S) basada en les dades escalades i amb les dades crues s'ha eaborat la matriu de correlació (P). Veiem que les dues son iguals, per tant podríem treballar utilitzant qualsevol de les dues.
+
+Si sumem tots els autovalors aquesta suma ha de ser igual al nombre de variables: 63, i això es compleix. 
+
+El primer autovalor explica la major part de la variància, i es veu clarament com la proporció de variació va disminuint progressivament en els següents autovalors. Cada autovalor està associat a un component principal.
+
+En aquest cas, ens centrarem en els primers nou components principals. Junts, aquests nou PCs expliquen 0.404 + 0.082 + 0.053 + 0.048 + 0.044 + 0.041 + 0.034 + 0.030 + 0.025 = 0.761, o el 76% de la variància en les 63 variables de resposta estudiades.  S'ha considerat, com trobem en la literatura, utilitzar tants autovalors com sigui necessari per a explicar el 75% (Borcard et al. 2018, extret de la guia PCA proporcionada al Campus Virtual). 
+
+A continuació, es descriuen les PCs:
+
+PC1: Assigna un pes baix a totes les variables.
+
+PC2: Les variables Acetone i Tartrate tenen un pes relativament més alt que la resta. 
+
+PC3: En aquesta pc destaquen la Glucose i Lactate. Això pot suggerir que aquest component està associat amb els sucres i lactats.
+
+PC4: Els pesos alts estan a Creatine i Sucrose, el que podria interpretar-se com a representació concentració de  metabolits d'energia.
+
+PC5: Dona més pes a X2.Oxoglutarate i Uracil.
+
+PC6: Tenen pes Adipate i Carnitine.
+
+PC7: Té més pes en variables com X1.Methylnicotinamide i Pyruvate.
+
+PC8: Dona un pes considerable a X1.Methylnicotinamide i Pantothenate, potser relacionat amb el metabolisme de la vitamina B.
+
+PC9: Assigna pes alts a Xylose i myo.Inositol, aquest PC podria interpretar-se com a mesura del metabolisme de sucre.
+
+Sembla que cada component principal ens mostra com diferents conjunts de metabòlits queden agrupats, i sembla que es veuen associacions metabòliques o rutes bioquímiques de l'organisme. 
+
+Per últim, es realitza una prova de permutació per avaluar les diferencies que hi ha en el primer component principal entre els nostres dos grups d'estudi. El valor de la nostra p és inferior a 0.05, per tant indica que hi ha diferències estadísticament significatives entre els dos grups: caquètics i controls. 
+
+
+
+# 5. Discussió i limitacions i conclusions de l' estudi. 
+
+Com ja s'ha comentat en apartats anteriors, aquest estudi analitza la relació entre diferents processos metabòlics i la caquèxia. Per a fer-ho, s'ha recopilat dades de 77 individus, dividits en dos grups: 47 pacients amb caquèxia i 30 controls. Utilitzant diferents tècniques d'analisi descriptiva, bivariant i anàlisi de components principals, s'ha pogut trobar diferències metabòliques estadísticament significatives entre els dos grups. 
+
+Un altre aspecte a tenir en compte i que podria limitar aquest estudi és que podrien existir factors externs que no s'estan tenint en compte per l'estudi, com podrien ser les comorbiditats que pugui tenir l'individu (o recollit amb índex o una a una per separat) o altres fators externs, ja que també podríen condicionar els resultats. És a dir, per exemple, una persona que tingui diabetis pot tenir un perfil metabòlic concret que podria estar afectant al recollir les dades, però que no estem tenint en compte perquè aquesta característica ens manca. A part, el desconeixement de l'autora sobre el tema en concret, la caquèxia, i sobre la literatura existent d'aquesta temàtica, també pot portar a interpretacions més senzilles i poc profundes.
+
+Tot i que els resultats són prometedors i ens conviden a realitzar més estudis per veure si realment això es pot extrapolar a la població general, hem de tenir en compte que la mida de la mostra és petita i que el grup control presenta menys dades que el grup amb caquèxia i, aquest fet, podria afectar als resultats que hem obtingut, ja que podrien ser més robustos. A més a més, una mostra amb una mida més gran permet treure conclusions més contundents. 
+
+
+D'altra banda, tot i que els resultats obtinguts al realitzar l'Anàlisi de Components Principals PCA semblen indicar una diferència entre els dos grups, quan seleccionem els components principals per tal d'explicar una variància del 76% podria ser insuficient ja que podria no estar resolent bé la gran complexitat dels processos metabòlics que estan relacionats amb la caquèxia.
+
+
+En resum, aquest estudi ha servit per identificar diferències estadísticament significatives entre els diferents processos metabòlics dels dos grups, utilitzant tècniques com l'Anàlisi de Components Principals, que ens permeten redimensionar unes dades amb una quantitat molt gran de variables. Els resultats semblen suggerir que alguns canvis metabòlics podrien estar relacionats amb la caquèxia, però hem de ser curoses a l'hora d'interpretar perquè ens falta coneixement profund sobre la temàtica, també falta revisió de la literatura i podriem estar menystenint factors externs o altres enfermetats de l'individu, entre d'altres. 
+
+
+Per concloure, un estudi amb un tamany mostral més gran o adecuat per l'estudi, amb paritat dels grups casos-controls, amb més variables que recullin altres informacions sobre els pacients (edat, comorbiditats, etc) i/o un millor coneixement de la literatura, entre d'altres, ens podrien ajudar a comprendre millor la caquèxia i els processos metabòlics que se'n deriven.
+
+
+# 6. Apèndix: Codi R i tot l'anàlisi de dades
+
+
+```{r}
+
+
+library(BiocManager)
+
+
+BiocManager::install("GenomeInfoDbData", type = "binary")
+
+
+library(SummarizedExperiment)
+
+
+
+dades <- read.csv("D:/UOC/Dades_omiques/PAC1/clonat/Datasets/2024-Cachexia/human_cachexia.csv", row.names = 1)
+
+
+#install.packages("dplyr")
+#install.packages("kableExtra")
+# library(dplyr)
+# library(kableExtra)
+```
+
+
+
+
+
+```{r}
+####contenidor del tipus SummarizedExperiment
+
+# library(dplyr)
+# library(kableExtra)
+
+
+tipovariable <- data.frame(
+  variables = colnames(dades),
+  tipus = c("factor", rep("numeric", ncol(dades) - 1))
+)
+
+contenidor <- SummarizedExperiment(assays = list(counts = as.matrix(dades)),
+                            colData = tipovariable)
+
+metadades <- list(
+  dataset_id = "Desconegut",  
+  description = "This is the famous cachexia dataset used in several MetaboAnalyst tutorials",
+  name = "2024-Caquexia",
+  platform = "Github",  
+  sample_count = ncol(dades),  
+  feature_count = nrow(dades),  
+  organism = "Homo sapiens",
+  web_link = "https://rest.xialab.ca/api/download/metaboanalyst/human_cachexia.csv"
+)
+
+taula <- data.frame(matrix(ncol = 2, nrow = length(metadades)))
+for (i in 1:length(metadades)) {
+  taula[i, 1] <- names(metadades)[i]
+  taula[i, 2] <- metadades[[i]]
+}
+colnames(taula) <- c("Camp", "Descripció")
+
+cat("### Tabla de Metadatos del Estudio\n")
+taula %>%
+  kable() %>%
+  kable_styling()
+
+```
+
+
+
+
+```{r}
+##EXPLORACIó
+
+
+
+head(dades)
+str(dades)
+table(dades$Muscle.loss)
+#colnames(dades)
+table(is.na(dades))
+
+resumen_dades <- dades %>%
+  group_by(Muscle.loss) 
+
+
+normality_results <- dades %>%
+  select(-Muscle.loss) %>% 
+  map_dfr(~ {
+    shapiro_test <- shapiro.test(.)
+    ad_test <- ad.test(.)          
+    tibble(
+      variable = deparse(substitute(.)),
+      shapiro_p_value = shapiro_test$p.value,
+      ad_p_value = ad_test$p.value
+    )
+  })
+
+print(normality_results, n=63)
+
+t1 <- dades %>% 
+  tbl_summary(by=Muscle.loss) %>%
+  add_overall() %>% 
+  add_p
+
+t1
+
+dades$Muscle.loss <-as.factor(dades$Muscle.loss)
+dades$Muscle.loss <- factor(dades$Muscle.loss, levels = c("cachexic", "control"))
+
+
+###########PCA
+#str(dades)
+
+
+dades_escalar <- dades %>%
+select(-c(Muscle.loss))
+
+#dades_escalar<- dades
+#dades_escalar$Muscle.loss
+
+#dades_escalar$Muscle.loss <- as.numeric(dades_escalar$Muscle.loss) - 1
+scaled.data <- scale(dades_escalar)
+
+S <- cov(scaled.data)
+S %>% round(2)
+
+P <- cor(dades_escalar)
+P %>% round(2)
+
+#########
+
+S.eigen <- eigen(S)
+S.eigen$values %>% round(3) # Eigenvalues
+sum(S.eigen$values) ## 64 que es el nombre que tenim de variables
+S.eigen.prop <- S.eigen$values / sum(S.eigen$values)
+S.eigen.prop %>% round(3) # rounding for display
+
+barplot(S.eigen.prop)
+
+abline(h = mean(S.eigen.prop),
+col = "red")
+
+S.eigen$vectors %>% round(2) # 1 vector per eigenvalue
+
+
+loadings <- S.eigen$vectors[ , 1:9] %>%
+data.frame(row.names = colnames(dades_escalar)) %>%
+#rename( "PC1" = X1, "PC2" = X2, "PC3" = X3, "PC4" = X4, "PC5" = X5, "PC6" = X6, "PC7" = X7, "PC8" = X8, "PC9" = X9) %>%
+round(digits = 3)
+loadings
+
+PC1 <- scaled.data %*% S.eigen$vectors[,1]
+PC1 %>% head()
+
+PC.scores <- scaled.data %*% S.eigen$vectors
+PC.scores
+cor(PC.scores) %>% round(3) 
+
+darl.PCA <- princomp(dades_escalar, cor = TRUE)
+summary(darl.PCA, loadings = TRUE, cutoff = 0)
+
+plot(darl.PCA)
+
+
+darl.PCA2 <- prcomp(dades_escalar, scale. = TRUE) # Note scale. argument
+print(darl.PCA2)
+
+
+
+biplot(darl.PCA, xlab= "PC1 (40%)", ylab= "PC2 (8%)")
+
+darl.PCA.scores <- data.frame(darl.PCA$scores,
+condition = dades$Muscle.loss)
+#install.packages("vegan")
+library(vegan)
+adonis2(darl.PCA.scores$Comp.1 ~ condition,
+data = darl.PCA.scores,
+method = "euc")
+
+ggplot(data = darl.PCA.scores, aes(x = condition, y = Comp.1)) +
+geom_boxplot() +
+geom_jitter(aes(colour = condition), width = 0.3, height = 0) +
+theme_bw()
+
+
+
+
+library(ggbiplot)
+
+ggbiplot(darl.PCA)
+
+
+ggbiplot(darl.PCA) +
+geom_point(aes(colour = dades$Muscle.loss)) +
+labs(colour = "Site", x = "PC1(Size; 40%)", y = "PC2 (Shape; 8%)") +
+theme_bw()
+
+```
+

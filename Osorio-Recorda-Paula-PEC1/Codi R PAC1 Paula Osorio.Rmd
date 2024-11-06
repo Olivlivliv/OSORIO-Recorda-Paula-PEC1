@@ -1,0 +1,254 @@
+---
+title: "CODI R PAC1 Dades Òmiques"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+date: "2024-11-04"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+Sys.which("make")
+
+.libPaths("C:/Users/paula/R-libraries")
+
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager", repos = "https://cran.rstudio.com/")
+}
+
+
+library(BiocManager)
+
+
+BiocManager::install("SummarizedExperiment", type = "binary")
+
+BiocManager::install("GenomeInfoDbData", type = "binary")
+
+
+library(SummarizedExperiment)
+
+
+dades <- read.csv("D:/UOC/Dades_omiques/PAC1/human_cachexia.csv", row.names = 1)
+
+install.packages("git2r")
+library(git2r)
+
+repo_url <- "https://github.com/nutrimetabolomics/metaboData.git"
+local_dir <- "D:/UOC/Dades_omiques/PAC1/clonat" 
+clone(repo_url, local_dir)
+
+dades <- read.csv("D:/UOC/Dades_omiques/PAC1/clonat/Datasets/2024-Cachexia/human_cachexia.csv", row.names = 1)
+
+
+#install.packages("dplyr")
+#install.packages("kableExtra")
+library(dplyr)
+library(kableExtra)
+```
+
+# 1. El dataset 
+
+El dataset escollit és el de Caquexia del repositori de Github proporcionat a l'enunciat.
+
+
+2. Un cop descarregades les dades crea un contenidor del tipus SummarizedExperiment que contingui les dades i les metadades (informació sobre el dataset, les files i les columnes). 
+
+
+```{r}
+
+library(dplyr)
+library(kableExtra)
+
+
+tipovariable <- data.frame(
+  variables = colnames(dades),
+  tipus = c("factor", rep("numeric", ncol(dades) - 1))
+)
+
+contenidor <- SummarizedExperiment(assays = list(counts = as.matrix(dades)),
+                            colData = tipovariable)
+
+metadades <- list(
+  dataset_id = "Desconegut",  
+  description = "This is the famous cachexia dataset used in several MetaboAnalyst tutorials",
+  name = "2024-Caquexia",
+  platform = "Github",  
+  sample_count = ncol(dades),  
+  feature_count = nrow(dades),  
+  organism = "Homo sapiens",
+  web_link = "https://rest.xialab.ca/api/download/metaboanalyst/human_cachexia.csv"
+)
+
+taula <- data.frame(matrix(ncol = 2, nrow = length(metadades)))
+for (i in 1:length(metadades)) {
+  taula[i, 1] <- names(metadades)[i]
+  taula[i, 2] <- metadades[[i]]
+}
+colnames(taula) <- c("Camp", "Descripció")
+
+cat("### Tabla de Metadatos del Estudio\n")
+taula %>%
+  kable() %>%
+  kable_styling()
+
+save(contenidor, file = "contenidor.Rda")
+
+```
+
+
+3. Porteu a terme una exploració del dataset que us proporcioni una visió general en la línia del que hem vist en les activitats
+
+```{r}
+
+library(kableExtra)
+library(dplyr) 
+library(tidyr) 
+library(tibble)
+library(purrr)
+library(stringr)
+library(lme4) 
+library(sjPlot)
+library(ggplot2)
+library(gtsummary)
+library(nortest)
+
+
+head(dades)
+str(dades)
+table(dades$Muscle.loss)
+#colnames(dades)
+table(is.na(dades))
+
+resumen_dades <- dades %>%
+  group_by(Muscle.loss) 
+
+
+normality_results <- dades %>%
+  select(-Muscle.loss) %>% 
+  map_dfr(~ {
+    shapiro_test <- shapiro.test(.)
+    ad_test <- ad.test(.)          
+    tibble(
+      variable = deparse(substitute(.)),
+      shapiro_p_value = shapiro_test$p.value,
+      ad_p_value = ad_test$p.value
+    )
+  })
+
+print(normality_results, n=63)
+
+t1 <- dades %>% 
+  tbl_summary(by=Muscle.loss) %>%
+  add_overall() %>% 
+  add_p
+
+t1
+
+dades$Muscle.loss <-as.factor(dades$Muscle.loss)
+dades$Muscle.loss <- factor(dades$Muscle.loss, levels = c("cachexic", "control"))
+
+
+###########PCA
+#str(dades)
+
+
+dades_escalar <- dades %>%
+select(-c(Muscle.loss))
+
+#dades_escalar<- dades
+#dades_escalar$Muscle.loss
+
+#dades_escalar$Muscle.loss <- as.numeric(dades_escalar$Muscle.loss) - 1
+scaled.data <- scale(dades_escalar)
+
+S <- cov(scaled.data)
+S %>% round(2)
+
+P <- cor(dades_escalar)
+P %>% round(2)
+
+#########
+
+S.eigen <- eigen(S)
+S.eigen$values %>% round(3) # Eigenvalues
+sum(S.eigen$values) ## 64 que es el nombre que tenim de variables
+S.eigen.prop <- S.eigen$values / sum(S.eigen$values)
+S.eigen.prop %>% round(3) # rounding for display
+
+barplot(S.eigen.prop)
+
+abline(h = mean(S.eigen.prop),
+col = "red")
+
+S.eigen$vectors %>% round(2) # 1 vector per eigenvalue
+
+
+loadings <- S.eigen$vectors[ , 1:9] %>%
+data.frame(row.names = colnames(dades_escalar)) %>%
+#rename( "PC1" = X1, "PC2" = X2, "PC3" = X3, "PC4" = X4, "PC5" = X5, "PC6" = X6, "PC7" = X7, "PC8" = X8, "PC9" = X9) %>%
+round(digits = 3)
+loadings
+
+PC1 <- scaled.data %*% S.eigen$vectors[,1]
+PC1 %>% head()
+
+PC.scores <- scaled.data %*% S.eigen$vectors
+PC.scores
+cor(PC.scores) %>% round(3) 
+
+darl.PCA <- princomp(dades_escalar, cor = TRUE)
+summary(darl.PCA, loadings = TRUE, cutoff = 0)
+
+plot(darl.PCA)
+
+
+darl.PCA2 <- prcomp(dades_escalar, scale. = TRUE) # Note scale. argument
+print(darl.PCA2)
+
+
+
+biplot(darl.PCA, xlab= "PC1 (40%)", ylab= "PC2 (8%)")
+
+darl.PCA.scores <- data.frame(darl.PCA$scores,
+condition = dades$Muscle.loss)
+#install.packages("vegan")
+library(vegan)
+adonis2(darl.PCA.scores$Comp.1 ~ condition,
+data = darl.PCA.scores,
+method = "euc")
+
+ggplot(data = darl.PCA.scores, aes(x = condition, y = Comp.1)) +
+geom_boxplot() +
+geom_jitter(aes(colour = condition), width = 0.3, height = 0) +
+theme_bw()
+
+
+
+
+library(ggbiplot)
+
+ggbiplot(darl.PCA)
+
+
+ggbiplot(darl.PCA) +
+geom_point(aes(colour = dades$Muscle.loss)) +
+labs(colour = "Site", x = "PC1(Size; 40%)", y = "PC2 (Shape; 8%)") +
+theme_bw()
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
